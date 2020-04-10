@@ -2,37 +2,22 @@
 
 namespace NotificationBundle\Channels;
 
-use Exception;
-use NotificationBundle\ChannelModels\ChannelInterface;
-use NotificationBundle\ChannelModels\Telegram;
-use NotificationBundle\Clients\Interfaces\TelegramClientInterface;
+use NotificationBundle\Client\TelegramClient;
+use NotificationBundle\Repository\NotificationConfigurationRepository;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Security\Core\Security;
 
-class TelegramChannel implements ChannelInterface
+class TelegramChannel extends BaseChannel
 {
-    /**
-     * @var TelegramClientInterface
-     */
-    private $client;
+    const NAME = 'TELEGRAM_CHANNEL';
 
-    /**
-     * TelegramChannel constructor.
-     * @param TelegramClientInterface $client
-     */
-    public function __construct(TelegramClientInterface $client)
+    public function __construct(
+        NotificationConfigurationRepository $notificationStatusRepository,
+        Security $security,
+        LoggerInterface $logger,
+        TelegramClient $client
+    )
     {
-        $this->client = $client;
-    }
-
-    /**
-     * @param ChannelInterface $model
-     * @throws Exception
-     */
-    public function send(ChannelInterface $model): void
-    {
-        if (!$model instanceof Telegram) {
-            throw new Exception('Instance of model should be TelegramModel');
-        }
-
-        $this->client->sendTelegram($model);
+        parent::__construct($notificationStatusRepository, $security, $logger, $client);
     }
 }

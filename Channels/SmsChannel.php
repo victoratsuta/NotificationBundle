@@ -2,37 +2,39 @@
 
 namespace NotificationBundle\Channels;
 
-use Exception;
-use NotificationBundle\ChannelModels\ChannelInterface;
-use NotificationBundle\ChannelModels\Sms;
-use NotificationBundle\Clients\Interfaces\SmsClientInterface;
+use NotificationBundle\Client\SmsRuClient;
+use NotificationBundle\Repository\NotificationConfigurationRepository;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Security\Core\Security;
 
-class SmsChannel implements ChannelInterface
+class SmsChannel extends BaseChannel
 {
-    /**
-     * @var SmsClientInterface
-     */
-    private $client;
+    const NAME = 'WEB_PUSH_CHANNEL';
 
-    /**
-     * SmsChannel constructor.
-     * @param SmsClientInterface $client
-     */
-    public function __construct(SmsClientInterface $client)
+    public function __construct(
+        NotificationConfigurationRepository $notificationStatusRepository,
+        Security $security,
+        LoggerInterface $logger,
+        SmsRuClient $client
+    )
     {
-        $this->client = $client;
+        parent::__construct($notificationStatusRepository, $security, $logger, $client);
     }
 
     /**
-     * @param ChannelInterface $model
-     * @throws Exception
+     * @param array       $data
+     * @param string|null $case
      */
-    public function send(ChannelInterface $model): void
+    public function send(array $data, string $case = null): void
     {
-
-        if(!$model instanceof Sms){
-            throw new Exception('Instance of model should be SmsModel');
+        if ($case && !$this->isAllowed($case, static::NAME)) {
+            return;
         }
-        $this->client->sendSMS($model);
+
+        try {
+            $result = $this->client->send($data);
+        } catch (\Exception $exception) {
+            $this->logger->critical(self::NAME . ' ERROR ' . $exception->getMessage());
+        }
     }
 }

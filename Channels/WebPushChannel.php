@@ -2,39 +2,43 @@
 
 namespace NotificationBundle\Channels;
 
-use Exception;
-use NotificationBundle\ChannelModels\ChannelInterface;
-use NotificationBundle\ChannelModels\WebPush;
-use NotificationBundle\Clients\Interfaces\EmailClientInterface;
-use NotificationBundle\Clients\Interfaces\WebPushClientInterface;
+use NotificationBundle\Client\EsputnikWebPushClient;
+use NotificationBundle\Repository\NotificationConfigurationRepository;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Security\Core\Security;
 
-class WebPushChannel implements ChannelInterface
+class WebPushChannel extends BaseChannel
 {
-    /**
-     * @var WebPushClientInterface
-     */
-    private $client;
+    const NAME = 'WEB_PUSH_CHANNEL';
 
-    /**
-     * WebPushChannel constructor.
-     * @param WebPushClientInterface $client
-     */
-    public function __construct(WebPushClientInterface $client)
+    public function __construct(
+        NotificationConfigurationRepository $notificationStatusRepository,
+        Security $security,
+        LoggerInterface $logger,
+        EsputnikWebPushClient $client
+    )
     {
-        $this->client = $client;
+        parent::__construct($notificationStatusRepository, $security, $logger, $client);
     }
 
     /**
-     * @param ChannelInterface $model
-     * @throws Exception
+     * @param array       $data
+     * @param string|null $case
      */
-    public function send(ChannelInterface $model): void
+    public function send(array $data, string $case = null): void
     {
-
-        if(!$model instanceof WebPush){
-            throw new Exception('Instance of model should be WebPush');
+        if(!$data['push_token']){
+            return;
         }
 
-        $this->client->sendWebPush($model);
+        if ($case && !$this->isAllowed($case, self::NAME)) {
+            return;
+        }
+
+        try {
+            $this->client->send($data);
+        } catch (\Exception $exception) {
+            $this->logger->critical(self::NAME . ' ERROR ' .$exception->getMessage());
+        }
     }
 }

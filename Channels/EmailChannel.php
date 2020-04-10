@@ -2,39 +2,40 @@
 
 namespace NotificationBundle\Channels;
 
-use Exception;
-use NotificationBundle\ChannelModels\ChannelInterface;
-use NotificationBundle\ChannelModels\Email;
-use NotificationBundle\Clients\Interfaces\EmailClientInterface;
+use NotificationBundle\Client\EsputnikEmailClient;
+use NotificationBundle\Repository\NotificationConfigurationRepository;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Security\Core\Security;
 
-class EmailChannel implements ChannelInterface
+class EmailChannel extends BaseChannel
 {
-    /**
-     * @var EmailClientInterface
-     */
-    private $client;
+    const NAME = 'EMAIL_CHANNEL';
 
-    /**
-     * EmailChannel constructor.
-     * @param EmailClientInterface $client
-     */
-    public function __construct(EmailClientInterface $client)
+    public function __construct(
+        NotificationConfigurationRepository $notificationStatusRepository,
+        Security $security,
+        LoggerInterface $logger,
+        EsputnikEmailClient $client
+    )
     {
-        $this->client = $client;
+        parent::__construct($notificationStatusRepository, $security, $logger, $client);
     }
 
     /**
-     * @param ChannelInterface $model
-     * @throws Exception
+     * @param array       $data
+     * @param string|null $case
      */
-
-    public function send(ChannelInterface $model): void
+    public function send(array $data, string $case = null): void
     {
-
-        if (!$model instanceof Email) {
-            throw new Exception('Instance of model should be Email');
+        if ($case && !$this->isAllowed($case, static::NAME)) {
+            return;
         }
 
-        $this->client->sendEmail($model);
+        try {
+            $result = $this->client->send($data);
+        } catch (\Exception $exception) {
+            $this->logger->critical(self::NAME . ' ERROR ' . $exception->getMessage());
+        }
     }
+
 }
